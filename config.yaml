@@ -1,0 +1,11 @@
+vertex:
+  project:
+    id: ing-dev-portal
+  dataStore:
+    id: dev-portal-store_1770128885403
+    location: eu
+  model:
+    name: gemini-2.5-flash
+    location: europe-central2
+    temperature: 0.2
+    maxOutputTokens: 8192

@@ -57,7 +57,7 @@ func RunPrompt(client *genai.Client, prompt string) {
 func runJsonFormattingPrompt(client *genai.Client, text string) {
 	ctx := context.Background()
 
-	generatedResponse, err := client.Models.GenerateContent(ctx, "gemini-2.5-flash", genai.Text(fmt.Sprintf("Format this code as json output with filePath and code keys: %s", text)), formattingConfig)
+	generatedResponse, err := client.Models.GenerateContent(ctx, conf.Vertex.Model.Name, genai.Text(fmt.Sprintf("Format this code as json output with filePath and code keys: %s", text)), formattingConfig)
 
 	util.HandleError("Error while formatting generated response: %v", err, level.ERROR)
 

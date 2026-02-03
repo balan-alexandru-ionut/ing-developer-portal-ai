@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"google.golang.org/genai"
 )
@@ -11,12 +12,12 @@ import (
 const (
 	project_id          = "ing-dev-portal"
 	location_europe     = "europe-central2"
-	location_data_store = "global"
-	data_store_id       = "dev-portal-store_1770036213809"
+	location_data_store = "eu"
+	data_store_id       = "dev-portal-store_1770128885403"
 )
 
 var temperature = float32(0.2)
-var max_output_tokens = int32(16384)
+var max_output_tokens = int32(8192)
 
 var dataStorePath = fmt.Sprintf("projects/%s/locations/%s/collections/default_collection/dataStores/%s", project_id, location_data_store, data_store_id)
 var searchTool = &genai.Tool{
@@ -45,11 +46,36 @@ var systemInstructions = &genai.Content{
 		},
 	},
 }
-var generateContentConfig = &genai.GenerateContentConfig{
+var groundedSearchConfig = &genai.GenerateContentConfig{
 	SystemInstruction: systemInstructions,
 	Tools:             []*genai.Tool{searchTool},
 	Temperature:       &temperature,
 	MaxOutputTokens:   max_output_tokens,
+}
+
+var formattingConfig = &genai.GenerateContentConfig{
+	Temperature:      &temperature,
+	MaxOutputTokens:  max_output_tokens,
+	ResponseMIMEType: "application/json",
+	ResponseSchema: &genai.Schema{
+		Type: genai.TypeObject,
+		Properties: map[string]*genai.Schema{
+			"files": {
+				Type: genai.TypeArray,
+				Items: &genai.Schema{
+					Type: genai.TypeObject,
+					Properties: map[string]*genai.Schema{
+						"filepath": {
+							Type: genai.TypeString,
+						},
+						"code": {
+							Type: genai.TypeString,
+						},
+					},
+				},
+			},
+		},
+	},
 }
 
 func NewGeminiCient() *genai.Client {
@@ -71,19 +97,43 @@ func NewGeminiCient() *genai.Client {
 func RunPrompt(client *genai.Client, prompt string) {
 	ctx := context.Background()
 
-	responseIterator := client.Models.GenerateContentStream(ctx, "gemini-2.5-flash", genai.Text(prompt), generateContentConfig)
+	generatedResponse, err := client.Models.GenerateContent(ctx, "gemini-2.5-flash", genai.Text(prompt), groundedSearchConfig)
 
-	for chunk, err := range responseIterator {
-		if err != nil {
-			log.Fatalf("Error while streaming response: %v\n", err)
-		}
+	if err != nil {
+		log.Fatalf("Error generating response: %v", err)
+	}
 
-		for _, candidate := range chunk.Candidates {
-			if candidate.Content != nil {
-				for _, part := range candidate.Content.Parts {
-					fmt.Print(part.Text)
-				}
+	groundedText := make([]string, 0, 16000)
+
+	for _, candidate := range generatedResponse.Candidates {
+		if candidate.Content != nil {
+			for _, part := range candidate.Content.Parts {
+				groundedText = append(groundedText, part.Text)
 			}
 		}
 	}
+
+	runJsonFormattingPrompt(client, strings.Join(groundedText, ""))
+}
+
+func runJsonFormattingPrompt(client *genai.Client, text string) {
+	ctx := context.Background()
+
+	generatedResponse, err := client.Models.GenerateContent(ctx, "gemini-2.5-flash", genai.Text(fmt.Sprintf("Format this code: %s", text)), formattingConfig)
+
+	if err != nil {
+		log.Fatalf("Error while formatting generated response: %v", err)
+	}
+
+	formattedText := make([]string, 0, 16000)
+
+	for _, candidate := range generatedResponse.Candidates {
+		if candidate.Content != nil {
+			for _, part := range candidate.Content.Parts {
+				formattedText = append(formattedText, part.Text)
+			}
+		}
+	}
+
+	fmt.Println(formattedText)
 }

@@ -8,6 +8,6 @@ import (
 func main() {
 	config.ReadConfigFile()
 
-	client := gemini.NewGeminiCient()
-	gemini.RunPrompt(client, "Provide a working Go program that calls the Showcase API")
+	client := gemini.NewGeminiClient()
+	gemini.RunPrompt(client, "Provide a working Java program that calls the Showcase API")
 }

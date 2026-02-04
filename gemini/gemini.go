@@ -18,7 +18,7 @@ var conf = config.C
 var groundedSearchConfig *genai.GenerateContentConfig
 var formattingConfig *genai.GenerateContentConfig
 
-func NewGeminiCient() *genai.Client {
+func NewGeminiClient() *genai.Client {
 	ctx := context.Background()
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
@@ -41,14 +41,17 @@ func RunPrompt(client *genai.Client, prompt string) {
 
 	util.HandleError("Error generating response: %v", err, level.ERROR)
 
-	groundedText := make([]string, 0, 16000)
+	groundedText := make([]string, 0, 32000)
 
-	for _, candidate := range generatedResponse.Candidates {
-		if candidate.Content != nil {
-			for _, part := range candidate.Content.Parts {
-				groundedText = append(groundedText, part.Text)
-			}
-		}
+	if len(generatedResponse.Candidates) == 0 || generatedResponse.Candidates[0].Content == nil {
+		log.Error("No candidates found")
+		return
+	}
+
+	candidate := generatedResponse.Candidates[0]
+
+	for _, part := range candidate.Content.Parts {
+		groundedText = append(groundedText, part.Text)
 	}
 
 	runJsonFormattingPrompt(client, strings.Join(groundedText, ""))
@@ -57,18 +60,26 @@ func RunPrompt(client *genai.Client, prompt string) {
 func runJsonFormattingPrompt(client *genai.Client, text string) {
 	ctx := context.Background()
 
-	generatedResponse, err := client.Models.GenerateContent(ctx, conf.Vertex.Model.Name, genai.Text(fmt.Sprintf("Format this code as json output with filePath and code keys: %s", text)), formattingConfig)
+	generatedResponse, err := client.Models.GenerateContent(
+		ctx,
+		conf.Vertex.Model.Name,
+		genai.Text(fmt.Sprintf("Format this from markdown to json: %s", text)),
+		formattingConfig,
+	)
 
 	util.HandleError("Error while formatting generated response: %v", err, level.ERROR)
 
 	formattedText := make([]string, 0, 16000)
 
-	for _, candidate := range generatedResponse.Candidates {
-		if candidate.Content != nil {
-			for _, part := range candidate.Content.Parts {
-				formattedText = append(formattedText, part.Text)
-			}
-		}
+	if len(generatedResponse.Candidates) == 0 || generatedResponse.Candidates[0].Content == nil {
+		log.Error("No candidates found")
+		return
+	}
+
+	candidate := generatedResponse.Candidates[0]
+
+	for _, part := range candidate.Content.Parts {
+		formattedText = append(formattedText, part.Text)
 	}
 
 	fmt.Println(formattedText)
@@ -99,8 +110,8 @@ func configureAITools() {
 				- Always use the endpoint names as they are, do not add versions or anything extra to them.
 				- When an access token is required always refer to the OAuth 2.0 spec and documentation that were provided.
 				- When an access token is required, the resulting code MUST contain the logic to obtain the access token.
-				- All generated code should be functional so you need to always include mTLS setups or JWS/Cavage request signing setups.
-				- Split the code into multiple files according to best practices and output a JSON where the keys are the filepaths starting always from 'src/' and the values are the file contents.
+				- All generated code should be functional so you need to always include mTLS setups or JWS/Cavage request signing setups. In the mTLS setup never verify the CA as it will never be provided.
+				- Split the code into multiple files according to best practices and output a JSON where the keys are the file paths starting always from 'src/' and the values are the file contents.
 				- Do not respond with anything else other than the JSON structure. Any text that guides the user on how to run the program should be put into a README.MD file under 'src/README.MD'.
 				- Assume that certificates are always available under 'src/certs' directory.
 				- If the user asks to change something only send back a JSON containing the files that need to be changed and the whole content of those files containing the requested changes.`,
@@ -112,6 +123,7 @@ func configureAITools() {
 		Tools:             []*genai.Tool{searchTool},
 		Temperature:       &conf.Vertex.Model.Temperature,
 		MaxOutputTokens:   conf.Vertex.Model.MaxOutputTokens,
+		CandidateCount:    1,
 	}
 
 	formattingConfig = &genai.GenerateContentConfig{
@@ -134,6 +146,7 @@ func configureAITools() {
 							},
 						},
 					},
+					Required: []string{"filePath", "code"},
 				},
 			},
 		},

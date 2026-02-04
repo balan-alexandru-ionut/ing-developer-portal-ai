@@ -8,4 +8,4 @@ vertex:
     name: gemini-2.5-flash
     location: europe-central2
     temperature: 0.2
-    maxOutputTokens: 8192
+    maxOutputTokens: 16384

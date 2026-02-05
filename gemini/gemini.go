@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"google.golang.org/genai"
 )
@@ -37,7 +38,11 @@ func RunPrompt(client *genai.Client, prompt string) {
 
 	ctx := context.Background()
 
+	start := time.Now()
+
 	generatedResponse, err := client.Models.GenerateContent(ctx, conf.Vertex.Model.Name, genai.Text(prompt), groundedSearchConfig)
+
+	log.Infof("Generated response in %v", time.Since(start))
 
 	util.HandleError("Error generating response: %v", err, level.ERROR)
 
@@ -60,6 +65,8 @@ func RunPrompt(client *genai.Client, prompt string) {
 func runJsonFormattingPrompt(client *genai.Client, text string) {
 	ctx := context.Background()
 
+	start := time.Now()
+
 	generatedResponse, err := client.Models.GenerateContent(
 		ctx,
 		conf.Vertex.Model.Name,
@@ -67,9 +74,11 @@ func runJsonFormattingPrompt(client *genai.Client, text string) {
 		formattingConfig,
 	)
 
+	log.Infof("Formatted response in %v", time.Since(start))
+
 	util.HandleError("Error while formatting generated response: %v", err, level.ERROR)
 
-	formattedText := make([]string, 0, 16000)
+	formattedText := make([]string, 0, 32000)
 
 	if len(generatedResponse.Candidates) == 0 || generatedResponse.Candidates[0].Content == nil {
 		log.Error("No candidates found")

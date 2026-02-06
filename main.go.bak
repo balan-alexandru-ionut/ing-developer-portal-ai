@@ -2,9 +2,7 @@ package main
 
 import (
     "encoding/json"
-    "log"
     "net/http"
-    "os"
 
     "ai-test/config"
     "ai-test/gemini"
@@ -31,20 +29,8 @@ func generateHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-
-    // ---- API route
     http.HandleFunc("/api/generate", generateHandler)
 
-    // ---- Static Vue frontend (served from /dist after Vite build)
-    fs := http.FileServer(http.Dir("./dist"))
-    http.Handle("/", fs)
-
-    // ---- Cloud Run requires listening on $PORT
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "8080" // Local dev fallback
-    }
-
-    log.Printf("Server running on port %s\n", port)
-    log.Fatal(http.ListenAndServe(":"+port, nil))
+    println("Backend running at http://localhost:8080")
+    http.ListenAndServe(":8080", nil)
 }

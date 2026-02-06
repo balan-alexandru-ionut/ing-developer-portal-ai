@@ -27,10 +27,13 @@ onMounted(highlight)
 onUpdated(highlight)
 
 // Re-highlight when content changes
-watch(() => props.code, () => {
-  // Avoid flashing; re-run highlight next tick
-  requestAnimationFrame(highlight)
-})
+watch(
+  () => props.code,
+  () => {
+    // Avoid flashing; re-run highlight next tick
+    requestAnimationFrame(highlight)
+  },
+)
 </script>
 
 <template>
@@ -47,10 +50,7 @@ watch(() => props.code, () => {
 
       <div class="max-h-[70vh] overflow-x-auto overflow-y-auto">
         <!-- IMPORTANT: use pre + code; control wrapping via classes -->
-        <pre
-          class="m-0 p-4"
-          :class="wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'"
-        >
+        <pre class="m-0 p-4" :class="wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'">
 <code ref="codeRef" :class="`language-${language}`">{{ code }}</code>
         </pre>
       </div>

@@ -1,8 +1,8 @@
 vertex:
   project:
-    id: project-8d79f0d9-c8dd-4f76-ad1
+    id: ing-dev-portal
   dataStore:
-    id: datastore-catalin_1770280012387
+    id: dev-portal-store_1770128885403
     location: eu
   model:
     name: gemini-2.5-flash

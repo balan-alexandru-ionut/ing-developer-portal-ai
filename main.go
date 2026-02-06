@@ -1,50 +1,43 @@
 package main
 
 import (
-    "encoding/json"
-    "log"
-    "net/http"
-    "os"
+	"log"
+	"net/http"
+	"os"
 
-    "ai-test/config"
-    "ai-test/gemini"
+	"ai-test/config"
+	"ai-test/gemini"
 )
 
-type Response struct {
-    Code string `json:"code"`
-}
-
 func generateHandler(w http.ResponseWriter, r *http.Request) {
-    // Load config
-    config.ReadConfigFile()
+	// Load config
+	config.ReadConfigFile()
 
-    // Create Gemini client
-    client := gemini.NewGeminiClient()
+	// Create Gemini client
+	client := gemini.NewGeminiClient()
 
-    // Get generated JSON code
-    result := gemini.RunPrompt(client, "Provide a working Java program that calls the Showcase API")
+	// Get generated JSON code
+	result := gemini.RunPrompt(client, "Provide a working Java program that calls the Showcase API")
 
-    resp := Response{Code: result}
-
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(resp)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(result))
 }
 
 func main() {
 
-    // ---- API route
-    http.HandleFunc("/api/generate", generateHandler)
+	// ---- API route
+	http.HandleFunc("/api/generate", generateHandler)
 
-    // ---- Static Vue frontend (served from /dist after Vite build)
-    fs := http.FileServer(http.Dir("./dist"))
-    http.Handle("/", fs)
+	// ---- Static Vue frontend (served from /dist after Vite build)
+	fs := http.FileServer(http.Dir("./frontend/dist"))
+	http.Handle("/", fs)
 
-    // ---- Cloud Run requires listening on $PORT
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "8080" // Local dev fallback
-    }
+	// ---- Cloud Run requires listening on $PORT
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // Local dev fallback
+	}
 
-    log.Printf("Server running on port %s\n", port)
-    log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Printf("Server running on port %s\n", port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

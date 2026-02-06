@@ -27,9 +27,7 @@ async function generate() {
     }
 
     const data = await res.json()
-    raw.value = typeof data?.code === 'string'
-      ? data.code
-      : JSON.stringify(data, null, 2)
+    raw.value = typeof data?.code === 'string' ? data.code : JSON.stringify(data, null, 2)
 
     // Try to parse the raw string to detect files[]
     try {
@@ -75,16 +73,18 @@ const files = computed(() => {
           ? f.code
           : typeof f.content === 'string'
             ? f.content
-            : (f.code ? JSON.stringify(f.code, null, 2) : ''),
+            : f.code
+              ? JSON.stringify(f.code, null, 2)
+              : '',
     }))
   }
 
   // Alternative: object keyed by path { "src/A.java": "...", ... }
   if (typeof parsed.value === 'object' && parsed.value !== null) {
     const keys = Object.keys(parsed.value)
-    const looksLikeFiles = keys.some(k => k.includes('/') || k.includes('.'))
+    const looksLikeFiles = keys.some((k) => k.includes('/') || k.includes('.'))
     if (looksLikeFiles) {
-      return keys.map(k => {
+      return keys.map((k) => {
         const v = parsed.value[k]
         return {
           filePath: k,
@@ -119,7 +119,6 @@ function languageFor(filePath) {
       </div>
 
       <div class="flex-none gap-2 px-4 items-center">
-        
         <!-- Generate: fully disabled while loading, pretty loader, stable width -->
         <button
           class="btn btn-primary min-w-[130px] flex items-center justify-center gap-2"
@@ -131,13 +130,9 @@ function languageFor(filePath) {
           <span>{{ loading ? 'Generating…' : 'Generate' }}</span>
         </button>
 
-        <button class="btn" :disabled="!raw || loading" @click="copyAll">
-          Copy
-        </button>
+        <button class="btn" :disabled="!raw || loading" @click="copyAll">Copy</button>
 
-        <button class="btn" :disabled="!raw || loading" @click="downloadAll">
-          Download
-        </button>
+        <button class="btn" :disabled="!raw || loading" @click="downloadAll">Download</button>
       </div>
     </div>
 
@@ -171,11 +166,11 @@ function languageFor(filePath) {
           </div>
 
           <!-- Warn if current file has no code -->
-          <div
-            v-if="!files[activeTab].code"
-            class="alert alert-warning mt-4"
-          >
-            <span>No code content found for <b>{{ files[activeTab].filePath }}</b>.</span>
+          <div v-if="!files[activeTab].code" class="alert alert-warning mt-4">
+            <span
+              >No code content found for <b>{{ files[activeTab].filePath }}</b
+              >.</span
+            >
           </div>
 
           <div class="mt-4 min-w-0">

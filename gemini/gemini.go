@@ -3,9 +3,12 @@ package gemini
 import (
 	"ai-test/config"
 	"ai-test/logger"
+	"ai-test/server/errors"
+	"ai-test/server/responses"
 	"ai-test/util"
 	"ai-test/util/level"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -18,6 +21,8 @@ var conf = config.C
 
 var groundedSearchConfig *genai.GenerateContentConfig
 var formattingConfig *genai.GenerateContentConfig
+
+var GenerationStatus responses.GenerationStatus = responses.NotStarted
 
 func NewGeminiClient() *genai.Client {
 	ctx := context.Background()
@@ -33,11 +38,13 @@ func NewGeminiClient() *genai.Client {
 	return client
 }
 
-func RunPrompt(client *genai.Client, prompt string) string {
+func RunPrompt(client *genai.Client, prompt string) (*responses.GenerationResponse, *errors.HttpError) {
 	configureAITools()
 
 	ctx := context.Background()
 	start := time.Now()
+
+	GenerationStatus = responses.Generating
 
 	generatedResponse, err := client.Models.GenerateContent(
 		ctx,
@@ -46,6 +53,8 @@ func RunPrompt(client *genai.Client, prompt string) string {
 		groundedSearchConfig,
 	)
 
+	GenerationStatus = responses.Generated
+
 	log.Infof("Generated response in %v", time.Since(start))
 	util.HandleError("Error generating response: %v", err, level.ERROR)
 
@@ -53,7 +62,7 @@ func RunPrompt(client *genai.Client, prompt string) string {
 
 	if len(generatedResponse.Candidates) == 0 || generatedResponse.Candidates[0].Content == nil {
 		log.Error("No candidates found")
-		return ""
+		return nil, &errors.InternalServerError
 	}
 
 	candidate := generatedResponse.Candidates[0]
@@ -64,9 +73,11 @@ func RunPrompt(client *genai.Client, prompt string) string {
 	return runJsonFormattingPrompt(client, strings.Join(groundedText, ""))
 }
 
-func runJsonFormattingPrompt(client *genai.Client, text string) string {
+func runJsonFormattingPrompt(client *genai.Client, text string) (*responses.GenerationResponse, *errors.HttpError) {
 	ctx := context.Background()
 	start := time.Now()
+
+	GenerationStatus = responses.Formatting
 
 	generatedResponse, err := client.Models.GenerateContent(
 		ctx,
@@ -82,7 +93,7 @@ func runJsonFormattingPrompt(client *genai.Client, text string) string {
 
 	if len(generatedResponse.Candidates) == 0 || generatedResponse.Candidates[0].Content == nil {
 		log.Error("No candidates found")
-		return ""
+		return nil, &errors.InternalServerError
 	}
 
 	candidate := generatedResponse.Candidates[0]
@@ -90,7 +101,12 @@ func runJsonFormattingPrompt(client *genai.Client, text string) string {
 		formattedText = append(formattedText, part.Text)
 	}
 
-	return strings.Join(formattedText, "")
+	response := responses.GenerationResponse{}
+
+	err = json.Unmarshal([]byte(strings.Join(formattedText, "")), &response)
+
+	response.Time = time.Now()
+	return &response, nil
 }
 
 func configureAITools() {

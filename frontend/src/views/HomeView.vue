@@ -4,6 +4,7 @@ import { ArrowRightIcon, Sparkles } from 'lucide-vue-next'
 import {useRouter} from "vue-router";
 import {useGenerationStore} from "@/stores/generation.ts";
 import type {File} from "@/types/files.ts";
+import GenerationPipeline from "@/components/GenerationPipeline.vue";
 
 const router = useRouter()
 const generationStore = useGenerationStore()
@@ -22,6 +23,8 @@ const supportedApis = [
 
 const languageChosen = ref(false)
 const apiChosen = ref(false)
+
+const generating = ref(false)
 
 let languageIndex = 0
 let apiIndex = 0
@@ -43,59 +46,62 @@ function startApiCycling() {
   }, 3500)
 }
 
-function chooseLanguage(chosenLanguage: string) {
+function stopAllCycling() {
+  if (languageInterval) clearInterval(languageInterval)
+  if (apiInterval) clearInterval(apiInterval)
+
+  languageInterval = null
+  apiInterval = null
+}
+
+function chooseLanguage(event: PointerEvent, chosenLanguage: string) {
   language.value = chosenLanguage
   languageChosen.value = true
   if (languageInterval) {
     clearInterval(languageInterval)
     languageInterval = null
   }
+
+  (event.target as HTMLLIElement).parentElement?.togglePopover()
 }
 
-function chooseApi(chosenApi: string) {
+function chooseApi(event: PointerEvent, chosenApi: string) {
   api.value = chosenApi
   apiChosen.value = true
   if (apiInterval) {
     clearInterval(apiInterval)
     apiInterval = null
   }
+
+  (event.target as HTMLLIElement).parentElement?.togglePopover()
 }
 
-function toggleLanguageCycling() {
-  if (languageChosen.value) return
-
-  if (languageInterval) {
-    clearInterval(languageInterval)
-    languageInterval = null
+function toggleCycling(event: ToggleEvent) {
+  if (event.newState === 'open') {
+    stopAllCycling()
     return
   }
 
-  startLanguageCycling()
-}
-
-function toggleApiCycling() {
-  if (apiChosen.value) return
-
-  if (apiInterval) {
-    clearInterval(apiInterval)
-    apiInterval = null
-    return
+  if (!languageChosen.value) {
+    startLanguageCycling()
   }
 
-  startApiCycling()
+  if (!apiChosen.value) {
+    startApiCycling()
+  }
 }
 
 function getGeneratedCode() {
   const prompt =
     'Build me a fully working ' + language.value + ' application that calls ' + api.value
-  fetch('api/generate', { method: 'GET' })
+  generating.value = true
+  fetch('api/generate/code?' + new URLSearchParams({prompt: prompt}), {method: 'GET'})
     .then((res) => res.json())
     .then((data: {files: File[]}) => {
       generationStore.language = language.value
       generationStore.api = api.value
       generationStore.files = data.files
     })
-    .then(code => router.push({name: 'code', params: {language: language.value, api: api.value}}))
 }
 
 onMounted(() => {
@@ -119,7 +125,8 @@ onBeforeUnmount(() => {
       <span class="text-2xl">Build me a fully working</span>
       <button
         ref="langSelectEl"
-        class="cycling-btn btn btn-ghost text-2xl text-primary font-bold px-4"
+        class="cycling-btn btn btn-ghost text-2xl font-bold px-4"
+        :class="!languageChosen ? 'text-primary' : 'text-accent'"
         popovertarget="language-popover"
         style="anchor-name: --language-anchor"
       >
@@ -130,14 +137,15 @@ onBeforeUnmount(() => {
         popover
         id="language-popover"
         style="position-anchor: --language-anchor"
-        @toggle="toggleLanguageCycling"
+        @toggle="e => toggleCycling(e)"
       >
-        <li v-for="lang in supportedLanguages" @click="chooseLanguage(lang)">{{ lang }}</li>
+        <li v-for="lang in supportedLanguages" @click="e => chooseLanguage(e, lang)">{{ lang }}</li>
       </ul>
       <span class="text-2xl">application that calls</span>
       <button
         ref="apiSelectEl"
-        class="cycling-btn btn btn-ghost text-2xl text-primary font-bold px-4"
+        class="cycling-btn btn btn-ghost text-2xl font-bold px-4"
+        :class="!apiChosen ? 'text-primary' : 'text-accent'"
         popovertarget="api-popover"
         style="anchor-name: --api-anchor"
       >
@@ -148,9 +156,9 @@ onBeforeUnmount(() => {
         popover
         id="api-popover"
         style="position-anchor: --api-anchor"
-        @toggle="toggleApiCycling"
+        @toggle="e => toggleCycling(e)"
       >
-        <li v-for="api in supportedApis" @click="chooseApi(api)">{{ api }}</li>
+        <li v-for="api in supportedApis" @click="e => chooseApi(e, api)">{{ api }}</li>
       </ul>
     </div>
 
@@ -165,7 +173,9 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <div class="flex justify-center items-center gap-2 w-full mt-8">
+    <GenerationPipeline v-if="generating" />
+
+    <div v-if="!generating" class="flex justify-center items-center gap-2 w-full mt-8">
       <ArrowRightIcon class="text-info" />
       <span class="text-lg text-info"
         >Click on the language or API buttons to select your preferences.</span

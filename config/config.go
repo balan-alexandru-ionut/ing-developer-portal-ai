@@ -21,6 +21,5 @@ func ReadConfigFile() {
 	util.HandleError("Could not read config file: %v", err, level.FATAL)
 
 	err = viper.Unmarshal(C)
-	log.Info(C)
 	util.HandleError("Could not read config file: %v", err, level.FATAL)
 }

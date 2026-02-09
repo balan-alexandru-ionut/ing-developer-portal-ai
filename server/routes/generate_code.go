@@ -8,10 +8,9 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/log"
-	"google.golang.org/genai"
 )
 
-var geminiClient *genai.Client
+var geminiClient *gemini.Client
 
 type PromptQuery struct {
 	Prompt string `query:"prompt"`
@@ -19,7 +18,7 @@ type PromptQuery struct {
 
 func generateCode(c fiber.Ctx) {
 	if geminiClient == nil {
-		geminiClient = gemini.NewGeminiClient()
+		geminiClient = gemini.NewClient()
 	}
 
 	q := new(PromptQuery)
@@ -30,7 +29,7 @@ func generateCode(c fiber.Ctx) {
 
 	log.Info(q.Prompt)
 
-	generatedCode, httpError := gemini.RunPrompt(geminiClient, q.Prompt)
+	generatedCode, httpError := geminiClient.RunCodeGenerationPrompt(q.Prompt)
 
 	if httpError != nil {
 		httpError.Send(c)
@@ -41,13 +40,16 @@ func generateCode(c fiber.Ctx) {
 		errors.InternalServerError.Send(c)
 	}
 
-	gemini.GenerationStatus = responses.Done
+	geminiClient.Status = responses.Done
 }
 
 func generationStatus(c fiber.Ctx) {
-	status := gemini.GenerationStatus
+	if geminiClient == nil {
+		c.Status(http.StatusOK).JSON(responses.NewGenerationStatusResponse(responses.NotStarted))
+		return
+	}
 
-	if err := c.Status(http.StatusOK).JSON(responses.NewGenerationStatusResponse(status)); err != nil {
+	if err := c.Status(http.StatusOK).JSON(responses.NewGenerationStatusResponse(geminiClient.Status)); err != nil {
 		errors.InternalServerError.Send(c)
 	}
 }

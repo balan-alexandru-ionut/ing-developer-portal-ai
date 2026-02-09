@@ -4,6 +4,8 @@ import (
 	"ai-test/gemini"
 	"ai-test/server/errors"
 	"ai-test/server/responses"
+	"ai-test/util"
+	"ai-test/util/level"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -38,8 +40,9 @@ func chat(c fiber.Ctx) {
 		return
 	}
 
-	chatPrompt := &ChatPrompt{}
+	chatPrompt := new(ChatPrompt)
 	if err := c.Bind().JSON(chatPrompt); err != nil {
+		util.HandleError(err.Error(), err, level.WARN)
 		errors.BadRequestError.Send(c)
 		return
 	}

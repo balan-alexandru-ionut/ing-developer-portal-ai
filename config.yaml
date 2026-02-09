@@ -1,9 +1,9 @@
 vertex:
   project:
-    id: ing-dev-portal
+    id: magicode-486907
   dataStore:
-    id: dev-portal-store_1770128885403
-    location: eu
+    id: magicode-datastore_1770626336218
+    location: global
   model:
     name: gemini-2.5-flash
     location: europe-central2

@@ -6,6 +6,24 @@ type HttpResponse struct {
 	Time time.Time `json:"time"`
 }
 
+func (r HttpResponse) Zero() HttpResponse {
+	return HttpResponse{
+		Time: time.Now(),
+	}
+}
+
+type ChatResponse struct {
+	HttpResponse
+	Message string `json:"message"`
+}
+
+func NewChatResponse(message string) *ChatResponse {
+	return &ChatResponse{
+		HttpResponse: HttpResponse{}.Zero(),
+		Message:      message,
+	}
+}
+
 type GenerationStatus string
 
 const (

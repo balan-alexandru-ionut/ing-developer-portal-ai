@@ -4,6 +4,7 @@ import (
 	"ai-test/gemini"
 	"ai-test/server/errors"
 	"ai-test/server/responses"
+	"encoding/json"
 	"net/http"
 
 	"github.com/gofiber/fiber/v3"
@@ -11,6 +12,7 @@ import (
 )
 
 var geminiClient *gemini.Client
+var GeneratedJSON []byte
 
 type PromptQuery struct {
 	Prompt string `query:"prompt"`
@@ -25,16 +27,18 @@ func generateCode(c fiber.Ctx) {
 
 	if err := c.Bind().Query(q); err != nil {
 		errors.BadRequestError.Send(c)
+		return
 	}
 
 	log.Info(q.Prompt)
 
 	generatedCode, httpError := geminiClient.RunCodeGenerationPrompt(q.Prompt)
-
 	if httpError != nil {
 		httpError.Send(c)
 		return
 	}
+
+	GeneratedJSON, _ = json.Marshal(generatedCode)
 
 	if err := c.Status(http.StatusOK).JSON(generatedCode); err != nil {
 		errors.InternalServerError.Send(c)

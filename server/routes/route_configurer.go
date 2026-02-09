@@ -6,4 +6,5 @@ func ConfigureRoutes(group *fiber.Router) {
 	generateGroup := (*group).Group("generate")
 	generateGroup.Get("/code", generateCode)
 	generateGroup.Get("/status", generationStatus)
+	generateGroup.Get("/archive", generateFilesHandler)
 }
